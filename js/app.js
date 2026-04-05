@@ -2,6 +2,10 @@ document.addEventListener("DOMContentLoaded", () => {
     renderRegiones();
 });
 
+/* ============================= */
+/* 🗺️ REGIONES */
+/* ============================= */
+
 function renderRegiones() {
 
     const regiones = [
@@ -68,6 +72,29 @@ function obtenerRegionSeleccionada() {
     return document.querySelector(".region-card.active").dataset.region;
 }
 
+/* ============================= */
+/* 📅 FECHAS (FIX IMPORTANTE) */
+/* ============================= */
+
+// 🔥 Crear fecha segura (sin bug de zona horaria)
+function crearFechaLocal(fechaStr) {
+    const [year, month, day] = fechaStr.split("-");
+    return new Date(year, month - 1, day);
+}
+
+// 🔥 Formatear fecha segura
+function formatearFecha(fecha) {
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, "0");
+    const day = String(fecha.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+/* ============================= */
+/* 📌 VALIDACIONES */
+/* ============================= */
+
 function esFeriado(fechaStr, region) {
     if (FERIADOS_NACIONALES.includes(fechaStr)) return true;
     if (FERIADOS_REGIONALES[region]) {
@@ -78,7 +105,7 @@ function esFeriado(fechaStr, region) {
 
 function esDiaValido(fecha, tipo, region) {
     const dia = fecha.getDay();
-    const fechaStr = fecha.toISOString().split("T")[0];
+    const fechaStr = formatearFecha(fecha); // 🔥 FIX
 
     if (tipo === "corridos") return true;
     if (esFeriado(fechaStr, region)) return false;
@@ -89,8 +116,14 @@ function esDiaValido(fecha, tipo, region) {
     return true;
 }
 
-function calcularFecha(fechaInicial, dias, tipo, region) {
-    let fecha = new Date(fechaInicial);
+/* ============================= */
+/* 🧠 CÁLCULO */
+/* ============================= */
+
+function calcularFecha(fechaInicialStr, dias, tipo, region) {
+
+    let fecha = crearFechaLocal(fechaInicialStr); // 🔥 FIX CLAVE
+
     let contador = 0;
     let dir = dias >= 0 ? 1 : -1;
 
@@ -100,8 +133,10 @@ function calcularFecha(fechaInicial, dias, tipo, region) {
     while (contador < Math.abs(dias)) {
         fecha.setDate(fecha.getDate() + dir);
 
+        const fechaStr = formatearFecha(fecha);
+
         if (!esDiaValido(fecha, tipo, region)) {
-            if (esFeriado(fecha.toISOString().split("T")[0], region)) feriados++;
+            if (esFeriado(fechaStr, region)) feriados++;
             else noHabiles++;
             continue;
         }
@@ -111,6 +146,10 @@ function calcularFecha(fechaInicial, dias, tipo, region) {
 
     return { fecha, feriados, noHabiles };
 }
+
+/* ============================= */
+/* 🎯 UI */
+/* ============================= */
 
 function calcular() {
     const fechaInput = document.getElementById("fechaInicio").value;
@@ -125,29 +164,27 @@ function calcular() {
 
     const res = calcularFecha(fechaInput, dias, tipo, region);
 
-    const fechaInicial = new Date(fechaInput).toLocaleDateString("es-CL");
+    // 🔥 FIX fecha inicial
+    const fechaInicial = crearFechaLocal(fechaInput).toLocaleDateString("es-CL");
     const fechaFinal = res.fecha.toLocaleDateString("es-CL");
 
-    // Tipo texto
     let tipoTexto = "";
     if (tipo === "corridos") tipoTexto = "días corridos";
     if (tipo === "habiles") tipoTexto = "días hábiles";
     if (tipo === "administrativos") tipoTexto = "días administrativos";
 
-    // Región texto
     const regionTexto = region === "cl"
         ? "en todo Chile"
         : "en la región seleccionada";
 
     const accion = dias >= 0 ? "Sumando" : "Restando";
 
-    const mensaje = `La fecha final es ${fechaFinal} ${accion} ${Math.abs(dias)} ${tipoTexto} desde el ${fechaInicial} ${regionTexto}. `;
+    const mensaje = `La fecha final es ${fechaFinal} ${accion} ${Math.abs(dias)} ${tipoTexto} desde el ${fechaInicial} ${regionTexto}.`;
 
     const resultadoBox = document.getElementById("resultado");
     const detalleBox = document.getElementById("detalle");
     const btn = document.getElementById("btnCalcular");
 
-    // Mostrar resultado
     resultadoBox.classList.remove("d-none");
     detalleBox.classList.remove("d-none");
 
@@ -155,11 +192,9 @@ function calcular() {
     detalleBox.innerText =
         `Se excluyeron ${res.feriados} feriados y ${res.noHabiles} días no hábiles`;
 
-    // Animación
     resultadoBox.classList.add("updated");
     setTimeout(() => resultadoBox.classList.remove("updated"), 300);
 
-    // Cambiar botón
     btn.innerText = "Volver";
     btn.classList.remove("btn-primary");
     btn.classList.add("btn-secondary");
@@ -171,11 +206,9 @@ function volver() {
     const detalleBox = document.getElementById("detalle");
     const btn = document.getElementById("btnCalcular");
 
-    // Ocultar resultado
     resultadoBox.classList.add("d-none");
     detalleBox.classList.add("d-none");
 
-    // Restaurar botón
     btn.innerText = "Calcular";
     btn.classList.remove("btn-secondary");
     btn.classList.add("btn-primary");
